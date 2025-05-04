@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UCAT VR Practice - MedwithPurpose</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         /* Custom styles for better UI/UX */
         html, body {
@@ -25,7 +26,6 @@
             flex-direction: column;
             height: calc(100vh - 2rem); /* Full height minus padding */
             width: 100%;
-            /* Removed max-width to allow full width usage */
             background-color: #ffffff;
             border: 1px solid #d1d5db; /* Border like UCAT */
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -115,7 +115,7 @@
             padding: 1rem; /* Padding around passage/question */
             gap: 1rem; /* Gap between passage and question */
         }
-        /* Passage and Question Columns - UPDATED WIDTHS */
+        /* Passage and Question Columns */
         .passage-column {
             flex: 0 0 60%; /* Set passage width to 60% */
             overflow-y: auto; /* Allow vertical scrolling */
@@ -133,6 +133,7 @@
              border-radius: 0.375rem;
              background-color: #f9fafb; /* Slight background tint */
              height: 100%; /* Fill available height */
+             position: relative; /* Needed for absolute positioning if used later */
         }
 
         /* Style for selected answer */
@@ -220,7 +221,7 @@
        .incorrect-indicator-text { color: #dc2626; font-weight: 600;} /* Red-600 */
        /* --- END Result Styling --- */
 
-         /* Style for explanation box */
+         /* Style for explanation box (used in results and review view) */
          .explanation-box {
              background-color: #fef3c7; /* Tailwind amber-100 */
              border: 1px solid #fcd34d; /* Tailwind amber-300 */
@@ -339,12 +340,12 @@
                     <input type="text" id="name" name="name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Enter your name">
                 </div>
                 <div>
-                    <label for="goal" class="block text-sm font-medium text-gray-700">Goal:</label>
-                    <input type="text" id="goal" name="goal" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., Improve speed, accuracy">
+                    <label for="goal" class="block text-sm font-medium text-gray-700">Goal (Score out of 16):</label>
+                    <input type="number" id="goal" name="goal" min="0" max="16" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., 12">
                 </div>
                 <div>
-                    <label for="focus-area" class="block text-sm font-medium text-gray-700">Area of Focus:</label>
-                    <input type="text" id="focus-area" name="focus-area" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., True/False/Can't Tell, Inference">
+                    <label for="focus-area" class="block text-sm font-medium text-gray-700">Area of Focus / Intention For Practice:</label>
+                    <input type="text" id="focus-area" name="focus-area" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., True/False/Can't Tell, Speed">
                 </div>
             </div>
             <div class="mt-8 text-center">
@@ -377,6 +378,7 @@
                         </p>
                     <div id="options-container" class="space-y-2">
                         </div>
+                    <div id="review-explanation-container"></div>
                 </div>
             </div>
 
@@ -421,9 +423,16 @@
             <p class="text-sm text-gray-500 mb-4 flex-shrink-0">Click on a question below to review it.</p>
             <div id="results-details" class="space-y-3 overflow-y-auto flex-grow pr-2">
                 </div>
-             <div class="mt-6 text-center flex-shrink-0 border-t pt-4">
+            <div class="mt-6 flex-shrink-0 border-t pt-4">
+                <label for="reflection-text" class="block text-md font-semibold text-gray-700 mb-2">Main takeaway from this practice:</label>
+                <textarea id="reflection-text" name="reflection-text" rows="3" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Reflect on your performance, strategies, or areas for improvement..."></textarea>
+            </div>
+             <div class="mt-6 text-center flex-shrink-0 flex justify-center space-x-4">
                 <button onclick="window.location.reload()" class="secondary-button px-6 py-2">
                     Try Again
+                </button>
+                <button id="download-pdf-button" class="primary-button px-6 py-2">
+                    Download Results PDF
                 </button>
             </div>
         </div>
@@ -444,7 +453,7 @@
 
     <script>
         // --- Data ---
-        // Updated Passages from VR Focus Group #14.pdf
+        // Updated Passages from VR Focus Group #14 (2).pdf
         const passages = [
             // Passage 1: Acoustics
             `Long before acoustic engineering became a formal science, medieval cathedral builders intuitively constructed spaces that shaped sound as profoundly as they shaped stone. In 13th-century Europe, particularly in France and England, builders of Gothic cathedrals incorporated soaring vaults, ribbed ceilings, and stone columns that were not only aesthetic marvels but also acoustic tools. The reverberation time in these cathedrals often exceeded eight seconds, a phenomenon that profoundly affected the liturgy and music written for such spaces.\nGregorian chants and early polyphonic music composed in this era appear unusually sparse to modern ears. This was not due to a lack of musical sophistication, but rather a deliberate adaptation to the extended echo of cathedral interiors. Melodic lines were intentionally slow and legato, allowing notes to bloom and blend across vast naves. Singers and composers learned to "collaborate" with stone, adjusting harmonic structures to accommodate acoustic delays that might otherwise muddle complex phrases.\nRecent research using digital models of Notre-Dame de Paris has shown how architectural elements like the triforium (a narrow passage above the nave arcade) created natural feedback loops that amplified certain frequencies. Even now, with the rise of performance halls designed through computational modeling, scholars are revisiting these ancient buildings not just as places of worship, but as early experiments in psychoacoustic design.`,
@@ -456,28 +465,28 @@
             `Recent entomological surveys in major European cities have recorded a dramatic decline in the biomass and diversity of urban insect populations. A 2022 meta-analysis conducted across 12 countries revealed that insect abundance in urban green spaces has declined by nearly 40% in just the past two decades. Researchers have identified several contributing factors, including increased artificial lighting, habitat fragmentation, and the use of herbicides in city landscaping.\nInterestingly, the study found that insect populations were somewhat more stable in cities that had adopted "wildscape" management an approach that prioritizes native vegetation and reduces lawn mowing frequency. However, the benefits of wildscaping were mostly confined to ground-dwelling and nocturnal insects, with flying insect numbers showing little or no recovery. The researchers hypothesised that light pollution continues to disorient and disrupt the circadian rhythms of flying species, regardless of habitat structure.\nCritically, the authors caution against drawing overly optimistic conclusions from parks or community gardens that appear insect-rich. They point out that visible species, like butterflies and bees, are often exceptions in an otherwise collapsing ecosystem. Instead, the authors advocate for large-scale longitudinal monitoring and urban planning that incorporates "dark corridors" and pesticide-free zones to mitigate the multifactorial causes of decline.`
         ];
 
-        // Updated Questions (16 total) from VR Focus Group #14.pdf
+        // Updated Questions (16 total) from VR Focus Group #14 (2).pdf and provided explanations
         const questions = [
             // Passage 1 Questions
-            { passageIndex: 0, text: "Which of the following best summarises the central insight of the passage?", options: ["Cathedral builders in the 13th century were primarily concerned with aesthetics and grandeur.", "Medieval cathedrals unintentionally created poor acoustics for complex music.", "Architectural design in medieval cathedrals functioned as an early form of acoustic engineering.", "The music written for cathedrals was simplistic because the echo was overwhelming."], correctAnswer: "C", explanation: "The passage explicitly states cathedral builders incorporated elements that were 'acoustic tools' and that scholars revisit them as 'early experiments in psychoacoustic design,' supporting C. A is contradicted, B is partially true but not the central insight, D misrepresents the reason for musical style." },
-            { passageIndex: 0, text: "The author would most likely agree with which of the following statements?", options: ["The influence of architecture on musical development in medieval times is still largely underestimated.", "Gregorian chants were written without consideration of their performance environment.", "Modern acoustic engineers disregard the lessons of historical architecture.", "Music composed in cathedrals was limited in complexity because composers lacked training."], correctAnswer: "A", explanation: "The passage emphasizes the 'profound' effect of acoustics, the 'collaboration' between composers and stone, and scholars 'revisiting' these buildings, suggesting the link is significant and perhaps not fully appreciated (A). B is contradicted, C is not stated, D misattributes the reason for musical style." },
+            { passageIndex: 0, text: "Which of the following best summarises the central insight of the passage?", options: ["Cathedral builders in the 13th century were primarily concerned with aesthetics and grandeur.", "Medieval cathedrals unintentionally created profound acoustics for complex music.", "Architectural design in medieval cathedrals functioned as an early form of acoustic engineering.", "The music written for cathedrals was simplistic in order to reflect the message of the Gospel."], correctAnswer: "C", explanation: "The passage explicitly states cathedral builders incorporated elements that were 'acoustic tools' and that scholars revisit them as 'early experiments in psychoacoustic design,' supporting C. A is contradicted, B is partially true but not the central insight (the passage implies intuition/deliberation), D introduces reasoning not present in the text." },
+            { passageIndex: 0, text: "The author would most likely agree with which of the following statements?", options: ["The influence of architecture on musical development in medieval times is mainly a theoretical research concept.", "Gregorian chants were written primarily to collaborate with the performance environment.", "Modern acoustic engineers disregard the lessons of historical architecture.", "If Gregorian music was played in a modern classroom, it would sound sparse because of the lack of extended echo."], correctAnswer: "D", explanation: "The passage states Gregorian chants appear 'unusually sparse' and were a 'deliberate adaptation to the extended echo.' This directly supports the idea that removing the echo (like in a classroom) would make them sound sparse (D). A contradicts the passage's presentation of research, B overstates the primary purpose (liturgy vs. acoustics), C is contradicted by the final paragraph." },
             { passageIndex: 0, text: "What is most likely the reason for the musical characteristics described in paragraph two?", options: ["Composers of the time lacked access to formal notation techniques.", "The physical dimensions of cathedrals caused musical phrases to overlap.", "The Catholic Church demanded simple music for theological reasons.", "The instruments used were incapable of producing rapid sequences."], correctAnswer: "B", explanation: "Paragraph two states music was adapted to the 'extended echo' and 'acoustic delays that might otherwise muddle complex phrases,' directly linking musical style to the acoustic properties (echo/delay/overlap) caused by the dimensions (B). A, C, D are not mentioned." },
-            { passageIndex: 0, text: "What conclusion can be drawn about modern acoustic research from the final paragraph?", options: ["It confirms that cathedral design was randomly effective in producing sound.", "It applies lessons from cathedral design to shape current religious spaces.", "It suggests that contemporary design may be rediscovering what ancient builders achieved intuitively.", "It shows that modern cathedrals now use advanced digital techniques to shape sound."], correctAnswer: "C", explanation: "The final paragraph mentions scholars 'revisiting these ancient buildings' as 'early experiments in psychoacoustic design' even with modern computational modeling, implying a rediscovery of intuitive ancient practices (C). A is contradicted by 'intuitive,' B is too specific, D is not mentioned." },
+            { passageIndex: 0, text: "What conclusion can be drawn about modern acoustic research from the final paragraph?", options: ["It confirms that cathedral design was effective in producing sound.", "It applies lessons from cathedral design to shape current religious spaces.", "It suggests that contemporary design may be rediscovering what ancient builders achieved intuitively.", "It shows that modern cathedrals now use advanced digital techniques to shape sound."], correctAnswer: "C", explanation: "The final paragraph mentions scholars 'revisiting these ancient buildings' as 'early experiments in psychoacoustic design' even with modern computational modeling, implying a rediscovery of intuitive ancient practices (C). A is too general, B is too specific ('religious spaces'), D is not mentioned." },
             // Passage 2 Questions
-            { passageIndex: 1, text: "What is the primary implication of the statement that 'authority flowed horizontally' in the Althing?", options: ["All Icelandic citizens were given equal votes in major decisions.", "The Althing operated through shared power among groups rather than centralised rule.", "Laws were determined solely by religious authorities.", "Executive power was limited to one elected chieftain."], correctAnswer: "B", explanation: "The passage contrasts the Althing with monarchies where authority flows downward, stating it operated 'horizontally' through 'consensus among powerful clans' and 'distributed authority,' matching B. A is false (inclusivity was limited), C is not mentioned, D is contradicted (Lawspeaker had no executive power)." },
-            { passageIndex: 1, text: "The author most likely includes the detail about exile being a common punishment to:", options: ["Show that the Althing's justice system was excessively harsh for its time.", "Indicate that executions were more symbolic than functional.", "Highlight a nonviolent approach to justice distinct from many medieval systems.", "Emphasise the Althing's strict control over its territory."], correctAnswer: "C", explanation: "The passage contrasts exile with execution and mentions reliance on social obligation rather than 'coercive force,' positioning exile as a less violent alternative common in other medieval systems (C). A is unlikely given the context, B is irrelevant, D is not supported." },
+            { passageIndex: 1, text: "What is the primary implication of the statement that 'authority flowed horizontally' in the Althing?", options: ["All Icelandic citizens were given equal votes in major decisions.", "The Althing operated through shared power among groups rather than centralised rule.", "Laws were determined solely by the Althing.", "Executive power was limited to one elected chieftain."], correctAnswer: "B", explanation: "The passage contrasts the Althing with monarchies where authority flows downward, stating it operated 'horizontally' through 'consensus among powerful clans' and 'distributed authority,' matching B. A is false (inclusivity was limited), C is not stated, D is contradicted (Lawspeaker had no executive power)." },
+            { passageIndex: 1, text: "The author most likely includes the detail about exile being a common punishment to:", options: ["Show that the Althing's justice system was excessively harsh for its time.", "Indicate that executions were more symbolic than functional.", "Highlight a nonviolent approach to justice distinct from many medieval systems.", "Emphasise the Althing's strict control over its territory."], correctAnswer: "C", explanation: "The passage contrasts exile with execution and mentions reliance on social obligation rather than 'coercive force,' positioning exile as a less violent alternative compared to execution, which was common elsewhere (C). A is unlikely given the context, B is irrelevant, D is not supported." },
             { passageIndex: 1, text: "Which of the following, if true, would most challenge the claim that the Althing represented a uniquely advanced form of governance?", options: ["Similar assemblies existed in other Norse settlements around the same time.", "Modern Icelandic law no longer recognises oral law traditions.", "The Althing was influenced by religious rituals and seasonal festivals.", "Its revival in the 19th century was largely symbolic rather than functional."], correctAnswer: "A", explanation: "The claim of the Althing being uniquely advanced ('rarely seen in medieval Europe,' 'prefigured parliamentary governance') would be challenged if similar structures were common elsewhere (A). B, C, D don't directly address the uniqueness or advancement claim compared to other contemporary systems." },
-            { passageIndex: 1, text: "What broader conclusion is most consistent with the author's presentation of the Althing?", options: ["Early democratic institutions tended to emerge in societies with formal literacy and strong legal codes.", "All medieval societies had some form of participatory politics, even if informal.", "Governance without enforcement mechanisms is inherently unstable and short-lived.", "Systems of governance rooted in consensus may develop even in the absence of modern state structures."], correctAnswer: "D", explanation: "The Althing operated via 'consensus,' relied on 'social obligation' not force, and had 'distributed authority' without features of modern states (written statutes, elected reps), supporting D. A is contradicted (oral tradition), B is too broad, C is contradicted by the Althing's existence." },
+            { passageIndex: 1, text: "What broader conclusion is most consistent with the author's presentation of the Althing?", options: ["Early democratic institutions tended to emerge in societies with formal literacy and strong legal codes.", "Medieval participatory politics, informal or otherwise, were a paragon of equality and egality.", "Governance without enforcement mechanisms is inherently vulnerable to foreign conquest.", "Systems of governance rooted in consensus may develop even in the absence of modern state structures."], correctAnswer: "D", explanation: "The Althing operated via 'consensus,' relied on 'social obligation' not force, and had 'distributed authority' without features of modern states (written statutes, elected reps), supporting D. A is contradicted (oral tradition), B is contradicted by the noted exclusions, C mentions foreign conquest which isn't the focus." },
              // Passage 3 Questions
-            { passageIndex: 2, text: "What is most likely the author's main purpose in including examples from both Norway and South Africa?", options: ["To highlight that silent protest is unique to authoritarian regimes.", "To demonstrate that silent protest has occurred across differing political and cultural contexts.", "To show that silence is more effective than traditional protest methods.", "To contrast successful and unsuccessful uses of protest."], correctAnswer: "B", explanation: "The examples from Nazi Norway and apartheid South Africa show silent protest being used effectively in very different oppressive regimes and locations, demonstrating its use across contexts (B). A is too narrow, C is not claimed, D isn't the primary purpose (both examples seem effective in context)." },
-            { passageIndex: 2, text: "What can be inferred from the 2007 study cited in the third paragraph?", options: ["Silent protests are rarely recognised by international institutions.", "Movements using silence are usually less well organised.", "Silence may be symbolically powerful but less likely to produce direct legislative outcomes.", "Silent protests are more successful in democratic nations than in authoritarian ones."], correctAnswer: "C", explanation: "The study found silent movements '23% less likely to achieve direct policy change,' indicating a lower rate of legislative success compared to vocal ones, despite potential symbolic power mentioned elsewhere (C). A is not mentioned, B is not mentioned, D is not addressed by the study details provided." },
+            { passageIndex: 2, text: "What is most likely the author's main purpose in including examples from both Norway and South Africa?", options: ["To demonstrate that fighting against oppression is a key theme to all silent protest.", "To demonstrate that silent protest has occurred across differing political and cultural contexts.", "To show that silence is more effective than traditional protest methods.", "To show that silent protest was effective in both Western cultures and African ones."], correctAnswer: "B", explanation: "The examples from Nazi Norway and apartheid South Africa show silent protest being used effectively in very different oppressive regimes and locations, demonstrating its use across contexts (B). A is plausible but B is broader, C is not claimed, D is true but less encompassing than B." },
+            { passageIndex: 2, text: "What can be inferred from the 2007 study cited in the third paragraph?", options: ["That the study lacked a wide enough sample space to create a proper assessment of silent protest's effectivity.", "Movements using silence are inherently more passive and less vitriolic than traditional protest.", "Silence may be symbolically powerful but less likely to produce direct legislative outcomes.", "Silent protests are more successful in democratic nations with freedom of the press, where views are propagated, than in authoritarian ones, where views are controlled."], correctAnswer: "C", explanation: "The study found silent movements '23% less likely to achieve direct policy change,' indicating a lower rate of legislative success compared to vocal ones, despite potential symbolic power mentioned elsewhere (C). A critiques the study (not stated), B makes a judgment about passivity (not stated), D compares regime types (not mentioned in study details)." },
             { passageIndex: 2, text: "Which of the following most accurately reflects a tension discussed in the passage?", options: ["Silent protests are difficult to coordinate due to lack of messaging.", "Protesters disagree on whether silence should be used against economic systems.", "Governments often support silent protest because it avoids violence, raising doubt as to whether a silent protest can be truly anti-government.", "Silence can both protect and obscure meaning in resistance movements."], correctAnswer: "D", explanation: "The passage mentions scholars arguing silence creates 'ambiguity' but others noting it 'resists reduction to a single message' and can be the 'only safe form of dissent' under repression, highlighting the tension between obscurity/safety and clarity (D). A, B, C are not discussed as tensions." },
-            { passageIndex: 2, text: "Based on the passage, which of the following statements is most consistent with the author's broader view?", options: ["Protest methods should be judged solely by their policy impact.", "Silence, though less directly effective, may carry a type of resistance that conventional protest cannot.", "Silent resistance is an outdated form of protest in the digital age.", "Governments are more likely to tolerate silent protests than visible demonstrations."], correctAnswer: "B", explanation: "The author presents both the limitations (less policy change, ambiguity) and strengths (symbolic power, safety under repression) of silence, suggesting it offers a different *type* of resistance even if less directly effective by some metrics (B). A focuses only on policy, C is speculative, D is not explicitly supported as a general rule." },
+            { passageIndex: 2, text: "Based on the passage, which of the following statements is most consistent with the author's broader view?", options: ["Protest methods should be judged solely by their policy impact.", "Silence, though less directly effective, may carry a type of resistance that conventional protest cannot.", "Silent resistance is an even more effective form of protest in the digital age.", "Governments are more likely to tolerate and encourage silent protests than visible demonstrations."], correctAnswer: "B", explanation: "The author presents both the limitations (less policy change, ambiguity) and strengths (symbolic power, safety under repression) of silence, suggesting it offers a different *type* of resistance even if less directly effective by some metrics (B). A focuses only on policy, C is speculative and not argued, D is contradicted by the Norway example." },
              // Passage 4 Questions
             { passageIndex: 3, text: "The benefits of urban wildscaping were mostly seen in insects that are active during the night.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage states the benefits of wildscaping were 'mostly confined to ground-dwelling and nocturnal insects.' This directly supports A (True)." },
-            { passageIndex: 3, text: "The researchers recommend city gardeners avoid planting visually attractive flowers to prevent drawing false conclusions about ecosystem health.", options: ["True", "False", "Can't Tell"], correctAnswer: "C", explanation: "The passage cautions against drawing conclusions from visible species like butterflies/bees but doesn't recommend *avoiding* planting flowers. It advocates for broader monitoring and planning. Therefore, the specific recommendation isn't mentioned (C - Can't Tell)." },
+            { passageIndex: 3, text: "The researchers recommend city gardeners avoid planting visually attractive flowers to prevent drawing false conclusions about ecosystem health.", options: ["True", "False", "Can't Tell"], correctAnswer: "C", explanation: "The passage warns visible species can mislead, but never tells gardeners to shun attractive flowers. It advocates for broader monitoring and planning. Therefore, the specific recommendation isn't mentioned (C - Can't Tell)." },
             { passageIndex: 3, text: "Despite some urban conservation efforts, artificial lighting remains a barrier to insect population recovery.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage states wildscaping benefits were limited for flying insects and hypothesizes that 'light pollution continues to disorient' them 'regardless of habitat structure,' indicating light pollution remains a barrier despite conservation efforts like wildscaping (A - True)." },
-            { passageIndex: 3, text: "It can be inferred that current visual observations of insect presence may not provide an accurate picture of overall urban insect biodiversity.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage explicitly states that visible species like butterflies/bees 'are often exceptions in an otherwise collapsing ecosystem' and cautions against drawing optimistic conclusions from their presence, implying visual observation is misleading for overall biodiversity (A - True)." },
+            { passageIndex: 3, text: "Current visual observations of insect presence provide an accurate picture of overall urban insect biodiversity.", options: ["True", "False", "Can't Tell"], correctAnswer: "B", explanation: "The last paragraph says visible butterflies/bees are 'exceptions in an otherwise collapsing ecosystem' and cautions against drawing optimistic conclusions, directly contradicting the idea that visual observations are accurate for overall biodiversity (B - False)." },
         ];
 
 
@@ -535,6 +544,9 @@
         const filterFlaggedButton = document.getElementById('filter-flagged-button'); // NEW: Filter button
         const setupQuestionCountEl = document.getElementById('setup-question-count'); // Element for setup question count
         const setupTimeLimitEl = document.getElementById('setup-time-limit'); // Element for setup time limit
+        const reviewExplanationContainer = document.getElementById('review-explanation-container'); // Container for explanation
+        const reflectionText = document.getElementById('reflection-text'); // Textarea for reflection
+        const downloadPdfButton = document.getElementById('download-pdf-button'); // PDF download button
 
 
 
@@ -543,7 +555,6 @@
         function startTimer() {
             examStartTime = new Date();
             clearInterval(timerInterval);
-            // Initialize timer display with the correct starting time
             timerEl.textContent = formatTimeSeconds(timeLeft);
             timerEl.classList.remove('text-gray-300');
             timerEl.classList.add('text-white', 'bg-opacity-20', 'bg-white');
@@ -629,11 +640,12 @@
             isReviewingFromResults = reviewMode;
 
             questionNumberEl.textContent = index + 1;
-            questionNumberInfoEl.textContent = `${index + 1} of ${questions.length}`; // Use dynamic length
+            questionNumberInfoEl.textContent = `${index + 1} of ${questions.length}`;
             questionTextEl.textContent = question.text;
              if (questionContainer) questionContainer.scrollTop = 0;
 
             optionsContainer.innerHTML = '';
+            reviewExplanationContainer.innerHTML = ''; // Clear previous explanation
             const optionLetters = ['A', 'B', 'C', 'D'];
             question.options.forEach((option, i) => {
                 const optionId = `q${index}_opt${i}`;
@@ -681,6 +693,16 @@
                 }
                 optionsContainer.appendChild(label);
             });
+
+            // --- ADD Explanation in Review Mode ---
+            if (reviewMode && question.explanation) {
+                const explanationDiv = document.createElement('div');
+                explanationDiv.classList.add('explanation-box'); // Use existing style
+                explanationDiv.innerHTML = `<strong class="font-semibold">Explanation:</strong> ${question.explanation}`;
+                reviewExplanationContainer.appendChild(explanationDiv);
+            }
+            // --- END Add Explanation ---
+
 
             prevButton.disabled = index === 0;
             if (!reviewMode && index === questions.length - 1) {
@@ -944,7 +966,7 @@
             });
 
             scoreEl.textContent = score;
-            totalQuestionsResultsEl.textContent = questions.length; // Use dynamic length
+            totalQuestionsResultsEl.textContent = questions.length;
             const timeDiff = examEndTime - examStartTime;
             timeTakenEl.textContent = formatTimeDifference(timeDiff);
         }
@@ -966,6 +988,76 @@
              stopTimer();
              showReviewScreen();
          }
+
+        // --- PDF Generation Function ---
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const reflection = reflectionText.value.trim();
+            const finalScore = scoreEl.textContent;
+            const totalQuestions = totalQuestionsResultsEl.textContent;
+            const timeTaken = timeTakenEl.textContent;
+
+            let y = 15; // Initial Y position
+            const lineHeight = 7;
+            const pageHeight = doc.internal.pageSize.height;
+            const margin = 15;
+
+            // Title
+            doc.setFontSize(18);
+            doc.text("UCAT Verbal Reasoning Results", margin, y);
+            y += lineHeight * 1.5;
+
+            // Summary
+            doc.setFontSize(12);
+            doc.text(`Name: ${userName || 'N/A'}`, margin, y);
+            y += lineHeight;
+            doc.text(`Goal: ${userGoal || 'N/A'} / ${totalQuestions}`, margin, y);
+            y += lineHeight;
+            doc.text(`Focus Area: ${userFocusArea || 'N/A'}`, margin, y);
+            y += lineHeight;
+            doc.text(`Final Score: ${finalScore} / ${totalQuestions}`, margin, y);
+            y += lineHeight;
+            doc.text(`Time Taken: ${timeTaken}`, margin, y);
+            y += lineHeight * 1.5;
+
+            // Reflection
+            doc.setFontSize(14);
+            doc.text("Reflection:", margin, y);
+            y += lineHeight;
+            doc.setFontSize(10);
+            // Use splitTextToSize for wrapping
+            const reflectionLines = doc.splitTextToSize(reflection || 'No reflection provided.', doc.internal.pageSize.width - margin * 2);
+            doc.text(reflectionLines, margin, y);
+            y += reflectionLines.length * (lineHeight * 0.7) + lineHeight; // Adjust spacing after reflection
+
+            // Detailed Results Header
+            doc.setFontSize(14);
+            doc.text("Detailed Results:", margin, y);
+            y += lineHeight * 1.5;
+            doc.setFontSize(10);
+
+            // Loop through questions
+            questions.forEach((qData, index) => {
+                const userAnswer = userAnswers[index];
+                const correctAnswer = qData.correctAnswer;
+                const isCorrect = userAnswer !== null && userAnswer !== undefined && userAnswer === correctAnswer;
+                const status = isCorrect ? "Correct" : (userAnswer ? "Incorrect" : "Not Answered");
+
+                const questionText = `Q${index + 1}: Your Answer: ${userAnswer || 'N/A'} | Correct: ${correctAnswer} | Status: ${status}`;
+
+                // Check if content exceeds page height
+                if (y + lineHeight > pageHeight - margin) {
+                    doc.addPage();
+                    y = margin; // Reset Y for new page
+                }
+
+                doc.text(questionText, margin, y);
+                y += lineHeight;
+            });
+
+            doc.save(`ucat_vr_results_${userName || 'user'}.pdf`);
+        }
 
 
         // --- Event Listeners ---
@@ -1020,6 +1112,9 @@
             isFilteringFlagged = !isFilteringFlagged;
             showReviewScreen(isFilteringFlagged);
         });
+
+        // Add listener for the download button
+        downloadPdfButton.addEventListener('click', generatePDF);
 
 
         // Keyboard shortcuts
