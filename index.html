@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UCAT VR Practice - MedwithPurpose</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better UI/UX */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrolling on body */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f2f5; /* Light background like UCAT */
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 2rem); /* Full height minus padding */
+            width: 100%;
+            /* Removed max-width to allow full width usage */
+            background-color: #ffffff;
+            border: 1px solid #d1d5db; /* Border like UCAT */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            border-radius: 0.375rem; /* Slightly rounded corners */
+            margin: 1rem; /* Add some margin */
+            overflow: hidden; /* Prevent content overflow from container */
+        }
+        /* Header and Footer */
+        .header-bar, .footer-bar {
+            flex-shrink: 0; /* Prevent shrinking */
+            background-color: #006DAA; /* Updated background color */
+            color: white; /* Set default text color to white */
+            padding: 0.75rem 1.5rem; /* Padding */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Specific text colors within header/footer */
+        .header-bar span, .header-bar div {
+             color: white;
+        }
+        #timer {
+             background-color: rgba(255, 255, 255, 0.2); /* Lighter background for timer */
+             color: white;
+             font-weight: bold;
+             padding: 0.25rem 0.75rem; /* Adjusted padding */
+             border-radius: 0.25rem; /* Slightly rounded */
+        }
+         /* Footer Button Styling */
+        .footer-bar button {
+            background-color: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.5); /* Subtle white border */
+            padding: 0.4rem 0.8rem; /* Adjust padding */
+            font-size: 0.8rem; /* Adjust font size */
+            border-radius: 0.375rem;
+             transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .footer-bar button:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.15); /* Slight white background on hover */
+            border-color: white;
+        }
+         .footer-bar button:disabled {
+             opacity: 0.5;
+             cursor: not-allowed;
+             border-color: rgba(255, 255, 255, 0.3);
+         }
+         /* Keep primary button distinct */
+         .footer-bar button#next-button {
+             background-color: #ffffff; /* White background */
+             color: #006DAA; /* Blue text */
+             border: 1px solid white;
+             font-weight: 500;
+         }
+         .footer-bar button#next-button:hover:not(:disabled) {
+             background-color: #f0f0f0; /* Slightly off-white on hover */
+         }
+         /* Flag button specific style */
+         #flag-button {
+             background-color: transparent;
+             border: 1px solid white;
+             color: white;
+             transition: background-color 0.2s ease, color 0.2s ease; /* Add transition */
+         }
+         #flag-button:hover {
+             background-color: white;
+             color: #006DAA;
+         }
+         /* Style for when a question IS flagged */
+          #flag-button.flagged {
+             background-color: #facc15; /* Yellow-400 */
+             border-color: #facc15;
+             color: #422006; /* Dark brown text for contrast */
+          }
+          #flag-button.flagged:hover {
+             background-color: #f59e0b; /* Amber-500 */
+             border-color: #f59e0b;
+          }
+
+
+        /* Main Content Area */
+        .main-content-area {
+            flex-grow: 1; /* Take remaining vertical space */
+            display: flex;
+            overflow: hidden; /* Prevent content overflow issues */
+            padding: 1rem; /* Padding around passage/question */
+            gap: 1rem; /* Gap between passage and question */
+        }
+        /* Passage and Question Columns - UPDATED WIDTHS */
+        .passage-column {
+            flex: 0 0 60%; /* Set passage width to 60% */
+            overflow-y: auto; /* Allow vertical scrolling */
+            padding: 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background-color: #f9fafb; /* Slight background tint */
+            height: 100%; /* Fill available height */
+        }
+        .question-column {
+             flex: 0 0 40%; /* Set question width to 40% */
+             overflow-y: auto; /* Allow vertical scrolling */
+             padding: 1rem;
+             border: 1px solid #e5e7eb;
+             border-radius: 0.375rem;
+             background-color: #f9fafb; /* Slight background tint */
+             height: 100%; /* Fill available height */
+        }
+
+        /* Style for selected answer */
+        .selected-answer {
+            background-color: #bfdbfe !important; /* Tailwind blue-200 - use !important to override hover */
+            border-color: #3b82f6 !important; /* Tailwind blue-500 */
+        }
+        /* Style for navigator buttons */
+        .nav-answered {
+            background-color: #a7f3d0; /* Tailwind emerald-200 */
+        }
+        .nav-current {
+            border: 2px solid #3b82f6 !important; /* Tailwind blue-500 */
+            font-weight: bold;
+        }
+        /* Style for flagged questions in navigator/review */
+        .nav-flagged, .review-flagged {
+            border: 2px solid #f59e0b !important; /* Amber-500 border */
+            position: relative; /* Needed for potential icon positioning */
+        }
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 0.5rem; }
+        .modal.flex { display: flex; }
+
+        /* General Button Styling (outside footer) */
+        button, .button {
+            transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            border-radius: 0.375rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+        }
+        button:active, .button:active { transform: scale(0.98); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .primary-button { background-color: #3b82f6; color: white; border: 1px solid transparent; }
+        .primary-button:hover:not(:disabled) { background-color: #2563eb; }
+        .secondary-button { background-color: white; color: #374151; border: 1px solid #d1d5db; }
+        .secondary-button:hover:not(:disabled) { background-color: #f9fafb; }
+        .danger-button { background-color: #ef4444; color: white; border: 1px solid transparent; }
+        .danger-button:hover:not(:disabled) { background-color: #dc2626; }
+        .subtle-button { background-color: #f3f4f6; color: #374151; border: 1px solid transparent; }
+        .subtle-button:hover:not(:disabled) { background-color: #e5e7eb; }
+
+
+        /* Styling for radio button labels to act as buttons */
+        .option-label {
+            display: block;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db; /* Tailwind gray-300 */
+            border-radius: 0.375rem;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            background-color: #ffffff; /* White background for options */
+        }
+        .option-label:hover:not(.selected-answer) { /* Prevent hover style if selected */
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+            border-color: #a5b4fc; /* Indigo-300 on hover */
+        }
+        /* Hide actual radio buttons */
+        input[type="radio"] { display: none; }
+
+        /* --- Result Styling (Adopted from Example) --- */
+        /* Result highlighting */
+       .correct-answer { background-color: #dcfce7; border-left: 4px solid #22c55e; } /* Green theme */
+       .incorrect-answer { background-color: #fee2e2; border-left: 4px solid #ef4444; } /* Red theme */
+       /* Style for clickable result items */
+       .result-item-clickable {
+           cursor: pointer;
+           transition: background-color 0.2s ease-in-out;
+           border: 1px solid #e5e7eb; /* Add a default border */
+           border-radius: 0.5rem; /* rounded-lg */
+           margin-bottom: 0.5rem; /* mb-2 */
+           padding: 0.75rem; /* p-3 */
+       }
+       .result-item-clickable:hover {
+           background-color: #f0f0f0; /* Slightly darker background on hover */
+       }
+       /* Style for correct/incorrect text indicators in results */
+       .correct-indicator-text { color: #16a34a; font-weight: 600;} /* Green-700 */
+       .incorrect-indicator-text { color: #dc2626; font-weight: 600;} /* Red-600 */
+       /* --- END Result Styling --- */
+
+         /* Style for explanation box */
+         .explanation-box {
+             background-color: #fef3c7; /* Tailwind amber-100 */
+             border: 1px solid #fcd34d; /* Tailwind amber-300 */
+             padding: 0.5rem 0.75rem; /* p-2 equivalent */
+             margin-top: 0.75rem; /* mt-3 */
+             border-radius: 0.375rem; /* rounded-md */
+             font-size: 0.875rem; /* text-sm */
+             color: #78350f; /* Tailwind amber-900 */
+         }
+
+         /* Review Grid Button Styles */
+         .review-grid-button {
+             padding: 0.5rem 0.25rem; /* Adjust padding */
+             border: 1px solid #d1d5db; /* Default border */
+             border-radius: 0.375rem;
+             text-align: center;
+             transition: background-color 0.2s ease, border-color 0.2s ease;
+             font-size: 0.875rem;
+             line-height: 1.25rem;
+             cursor: pointer;
+         }
+         .review-grid-button-answered {
+             background-color: #dcfce7; /* Lighter green */
+             border-color: #86efac; /* Green border */
+             color: #15803d; /* Darker green text */
+         }
+         .review-grid-button-unanswered {
+             background-color: #f3f4f6; /* Light gray */
+             border-color: #d1d5db; /* Gray border */
+             color: #4b5563; /* Gray text */
+         }
+          .review-grid-button:hover {
+             filter: brightness(95%); /* Slightly darken on hover */
+          }
+
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            #app-container {
+                 height: auto; /* Allow height to adjust */
+                 margin: 0.5rem;
+            }
+            .main-content-area {
+                flex-direction: column; /* Stack columns */
+                padding: 0.5rem;
+                gap: 0.5rem;
+            }
+            .passage-column, .question-column {
+                /* Reset flex basis for stacked layout */
+                flex-basis: auto;
+                width: 100%; /* Ensure full width when stacked */
+                height: auto; /* Adjust height automatically */
+                max-height: 40vh; /* Limit height to prevent excessive scrolling */
+                padding: 0.75rem;
+            }
+            .header-bar, .footer-bar {
+                padding: 0.5rem 1rem;
+            }
+            .header-bar span, .footer-bar button { /* Adjust font size for smaller buttons/text */
+                font-size: 0.8rem;
+            }
+            /* General button adjustments */
+            button, .button {
+                padding: 0.4rem 0.8rem;
+            }
+             /* Footer button specific adjustments */
+             .footer-bar button {
+                 padding: 0.3rem 0.6rem;
+                 font-size: 0.75rem;
+             }
+            .grid-cols-5 { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* Navigator grid adjustment */
+            #review-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } /* Review grid adjustment */
+            .review-grid-button { font-size: 0.8rem; }
+        }
+         @media (max-width: 480px) {
+             .grid-cols-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); } /* Navigator grid adjustment */
+             #review-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } /* Review grid adjustment */
+             .header-bar span, .footer-bar button { font-size: 0.75rem; }
+             /* General button adjustments */
+             button, .button {
+                 padding: 0.3rem 0.6rem;
+             }
+             /* Footer button specific adjustments */
+              .footer-bar button {
+                 padding: 0.25rem 0.5rem;
+                 font-size: 0.7rem;
+             }
+             .option-label { padding: 0.5rem 0.75rem; font-size: 0.8rem;}
+             .review-grid-button { font-size: 0.75rem; }
+         }
+
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    </head>
+<body>
+
+    <div id="app-container">
+
+        <div id="setup-screen" class="p-6 md:p-8 flex flex-col justify-center items-center h-full">
+             <div class="text-center mb-6">
+                <img src="https://ik.imagekit.io/mwp/MWP%20Color%20no%20background.png?updatedAt=1745982959141"
+                     alt="MedwithPurpose Logo"
+                     class="mx-auto h-20 w-auto mb-4"
+                     onerror="this.style.display='none'; this.onerror=null;">
+                <h1 class="text-2xl md:text-3xl font-bold text-blue-600">UCAT Verbal Reasoning Practice</h1>
+                <p class="text-gray-600 mt-2">Prepare for the UCAT VR section.</p>
+                 <p class="text-sm text-gray-500 mt-4">
+                     This section contains <strong id="setup-question-count">16 questions</strong> and you have <strong id="setup-time-limit">10 minutes</strong> to complete it.
+                 </p>
+            </div>
+            <div class="space-y-4 w-full max-w-md">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Name:</label>
+                    <input type="text" id="name" name="name" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Enter your name">
+                </div>
+                <div>
+                    <label for="goal" class="block text-sm font-medium text-gray-700">Goal:</label>
+                    <input type="text" id="goal" name="goal" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., Improve speed, accuracy">
+                </div>
+                <div>
+                    <label for="focus-area" class="block text-sm font-medium text-gray-700">Area of Focus:</label>
+                    <input type="text" id="focus-area" name="focus-area" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="e.g., True/False/Can't Tell, Inference">
+                </div>
+            </div>
+            <div class="mt-8 text-center">
+                <button id="start-button" class="primary-button text-lg px-8 py-3">
+                    Start Exam
+                </button>
+            </div>
+        </div>
+
+        <div id="exam-screen" class="hidden flex flex-col h-full">
+            <div class="header-bar">
+                <span id="exam-title" class="font-semibold">Verbal Reasoning</span>
+                <div class="flex items-center space-x-4">
+                    <div id="timer" class="text-base px-3 py-1 rounded-md">10:00</div> <span class="text-sm">Question <span id="question-number-info">1</span> of 16</span> <button id="flag-button" class="text-sm font-medium border border-white rounded px-2 py-1 transition-colors duration-150">
+                         Flag for Review
+                     </button>
+                </div>
+            </div>
+
+            <div class="main-content-area">
+                <div class="passage-column">
+                    <h3 class="text-lg font-semibold mb-2 sticky top-0 bg-gray-50 pb-1">Passage <span id="passage-number">1</span></h3>
+                    <div id="passage-text" class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                        </div>
+                </div>
+
+                <div class="question-column">
+                    <h4 class="text-md font-semibold mb-3 sticky top-0 bg-gray-50 pb-1">Question <span id="question-number">1</span></h4>
+                    <p id="question-text" class="mb-4 text-gray-800">
+                        </p>
+                    <div id="options-container" class="space-y-2">
+                        </div>
+                </div>
+            </div>
+
+            <div class="footer-bar">
+                 <button id="back-to-results-button" class="hidden mr-auto">← Back to Results</button>
+                 <button id="end-exam-button-footer">End Exam</button>
+                 <div class="flex items-center space-x-2 ml-auto">
+                     <button id="prev-button" disabled>← Previous (Alt+P)</button>
+                     <button id="navigator-button">Navigator</button>
+                     <button id="next-button">Next (Alt+N) →</button>
+                 </div>
+            </div>
+        </div>
+
+        <div id="review-screen" class="hidden p-6 md:p-8 flex flex-col items-center h-full overflow-y-auto">
+             <div class="w-full max-w-3xl mb-4 flex justify-between items-center">
+                 <h2 class="text-2xl font-bold text-blue-600">Review Your Answers</h2>
+                 <button id="filter-flagged-button" class="secondary-button text-sm">Show Flagged Only</button>
+             </div>
+             <p class="text-center text-gray-600 mb-6">Click on a question number to review it. Green indicates answered, Yellow border indicates flagged.</p>
+            <div id="review-grid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-10 gap-3 mb-6 w-full max-w-3xl">
+                </div>
+            <div class="mt-auto pt-6">
+                <button id="end-exam-button" class="danger-button text-lg px-8 py-3">
+                    End Exam & See Results
+                </button>
+            </div>
+        </div>
+
+        <div id="results-screen" class="hidden p-6 md:p-8 flex flex-col h-full">
+             <div class="text-center mb-6 flex-shrink-0">
+                <img src="https://ik.imagekit.io/mwp/MWP%20Color%20no%20background.png?updatedAt=1745982959141"
+                     alt="MedwithPurpose Logo"
+                     class="mx-auto h-16 w-auto mb-4"
+                     onerror="this.style.display='none'; this.onerror=null;">
+                 <h2 class="text-2xl md:text-3xl font-bold text-blue-600">Exam Results</h2>
+             </div>
+            <div class="bg-blue-50 p-4 rounded-lg mb-6 text-center flex-shrink-0">
+                 <p class="text-lg font-semibold">Your Score: <span id="score" class="text-blue-700">0</span> / <span id="total-questions-results">16</span></p> <p class="text-gray-600">Time Taken: <span id="time-taken"></span></p>
+            </div>
+            <h3 class="text-xl font-semibold mb-2 flex-shrink-0">Detailed Results:</h3>
+            <p class="text-sm text-gray-500 mb-4 flex-shrink-0">Click on a question below to review it.</p>
+            <div id="results-details" class="space-y-3 overflow-y-auto flex-grow pr-2">
+                </div>
+             <div class="mt-6 text-center flex-shrink-0 border-t pt-4">
+                <button onclick="window.location.reload()" class="secondary-button px-6 py-2">
+                    Try Again
+                </button>
+            </div>
+        </div>
+
+        <div id="navigator-modal" class="modal">
+            <div class="modal-content bg-white p-6 rounded-lg shadow-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">Question Navigator</h3>
+                    <button id="close-modal-button" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+                </div>
+                 <p class="text-sm text-gray-600 mb-4">Click a number to jump. Green: answered, Yellow border: flagged.</p>
+                <div id="navigator-grid" class="grid grid-cols-5 gap-3">
+                    </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Data ---
+        // Updated Passages from VR Focus Group #14.pdf
+        const passages = [
+            // Passage 1: Acoustics
+            `Long before acoustic engineering became a formal science, medieval cathedral builders intuitively constructed spaces that shaped sound as profoundly as they shaped stone. In 13th-century Europe, particularly in France and England, builders of Gothic cathedrals incorporated soaring vaults, ribbed ceilings, and stone columns that were not only aesthetic marvels but also acoustic tools. The reverberation time in these cathedrals often exceeded eight seconds, a phenomenon that profoundly affected the liturgy and music written for such spaces.\nGregorian chants and early polyphonic music composed in this era appear unusually sparse to modern ears. This was not due to a lack of musical sophistication, but rather a deliberate adaptation to the extended echo of cathedral interiors. Melodic lines were intentionally slow and legato, allowing notes to bloom and blend across vast naves. Singers and composers learned to "collaborate" with stone, adjusting harmonic structures to accommodate acoustic delays that might otherwise muddle complex phrases.\nRecent research using digital models of Notre-Dame de Paris has shown how architectural elements like the triforium (a narrow passage above the nave arcade) created natural feedback loops that amplified certain frequencies. Even now, with the rise of performance halls designed through computational modeling, scholars are revisiting these ancient buildings not just as places of worship, but as early experiments in psychoacoustic design.`,
+            // Passage 2: Althing
+            `Founded in 930 AD at Þingvellir, the Icelandic Althing is often cited as one of the world's oldest functioning parliamentary institutions. In its earliest form, it was not a building but an outdoor assembly where chieftains, known as goðar, met to settle disputes, recite laws from memory, and negotiate alliances. While it lacked many features of modern democracies-such as elected representatives or written statutes-it embodied a structured, participatory approach to conflict resolution rarely seen in medieval Europe.\nUnlike monarchies, where authority flowed downward from kings, the Althing operated horizontally. Decisions emerged through consensus among powerful clans, and enforcement relied more on social obligation than coercive force. Cases were judged by panels rather than a single authority figure, and punishments often took the form of exile rather than execution. The Lawspeaker, a memoriser of legal codes, held no executive power but presided symbolically over sessions, reinforcing a culture of oral tradition and distributed authority.\nThough the Althing was later subsumed under Norwegian and Danish rule, and formally disbanded in the 19th century before its modern revival, some historians argue that it prefigured parliamentary governance centuries before it emerged elsewhere in Europe. Others caution against romanticising it, noting that its inclusivity was limited: women, enslaved people, and landless men were excluded, and power remained in the hands of elite families.`,
+            // Passage 3: Silent Protest
+            `Throughout the 20th century, silence was strategically used by several protest movements as a form of active resistance rather than passive withdrawal. During the Nazi occupation of Norway, teachers refused to speak in state-mandated propaganda classes, prompting over 1,000 arrests in 1942. Their silent defiance became a national symbol, despite lacking any formal demands or slogans.\nIn apartheid-era South Africa, many Black South Africans participated in "stay-at-home" protests - not public marches, but days of collective silence and absence from work. One such action in 1958 saw industrial activity in Johannesburg fall by 70%, drawing international media attention without a single speech being delivered. Silence, in these contexts, was not merely an absence of noise but a disruption of the expected.\nScholars remain divided on the long-term power of silence. Some argue that it creates ambiguity, leaving room for misinterpretation or co-option. A 2007 study comparing protest outcomes in 12 countries found that movements employing silence were 23% less likely to achieve direct policy change than vocal counterparts. Yet others contend that silence can be more potent precisely because it resists reduction to a single message. In contexts of surveillance or repression, silence may be the only safe form of dissent.`,
+            // Passage 4: Urban Insects
+            `Recent entomological surveys in major European cities have recorded a dramatic decline in the biomass and diversity of urban insect populations. A 2022 meta-analysis conducted across 12 countries revealed that insect abundance in urban green spaces has declined by nearly 40% in just the past two decades. Researchers have identified several contributing factors, including increased artificial lighting, habitat fragmentation, and the use of herbicides in city landscaping.\nInterestingly, the study found that insect populations were somewhat more stable in cities that had adopted "wildscape" management an approach that prioritizes native vegetation and reduces lawn mowing frequency. However, the benefits of wildscaping were mostly confined to ground-dwelling and nocturnal insects, with flying insect numbers showing little or no recovery. The researchers hypothesised that light pollution continues to disorient and disrupt the circadian rhythms of flying species, regardless of habitat structure.\nCritically, the authors caution against drawing overly optimistic conclusions from parks or community gardens that appear insect-rich. They point out that visible species, like butterflies and bees, are often exceptions in an otherwise collapsing ecosystem. Instead, the authors advocate for large-scale longitudinal monitoring and urban planning that incorporates "dark corridors" and pesticide-free zones to mitigate the multifactorial causes of decline.`
+        ];
+
+        // Updated Questions (16 total) from VR Focus Group #14.pdf
+        const questions = [
+            // Passage 1 Questions
+            { passageIndex: 0, text: "Which of the following best summarises the central insight of the passage?", options: ["Cathedral builders in the 13th century were primarily concerned with aesthetics and grandeur.", "Medieval cathedrals unintentionally created poor acoustics for complex music.", "Architectural design in medieval cathedrals functioned as an early form of acoustic engineering.", "The music written for cathedrals was simplistic because the echo was overwhelming."], correctAnswer: "C", explanation: "The passage explicitly states cathedral builders incorporated elements that were 'acoustic tools' and that scholars revisit them as 'early experiments in psychoacoustic design,' supporting C. A is contradicted, B is partially true but not the central insight, D misrepresents the reason for musical style." },
+            { passageIndex: 0, text: "The author would most likely agree with which of the following statements?", options: ["The influence of architecture on musical development in medieval times is still largely underestimated.", "Gregorian chants were written without consideration of their performance environment.", "Modern acoustic engineers disregard the lessons of historical architecture.", "Music composed in cathedrals was limited in complexity because composers lacked training."], correctAnswer: "A", explanation: "The passage emphasizes the 'profound' effect of acoustics, the 'collaboration' between composers and stone, and scholars 'revisiting' these buildings, suggesting the link is significant and perhaps not fully appreciated (A). B is contradicted, C is not stated, D misattributes the reason for musical style." },
+            { passageIndex: 0, text: "What is most likely the reason for the musical characteristics described in paragraph two?", options: ["Composers of the time lacked access to formal notation techniques.", "The physical dimensions of cathedrals caused musical phrases to overlap.", "The Catholic Church demanded simple music for theological reasons.", "The instruments used were incapable of producing rapid sequences."], correctAnswer: "B", explanation: "Paragraph two states music was adapted to the 'extended echo' and 'acoustic delays that might otherwise muddle complex phrases,' directly linking musical style to the acoustic properties (echo/delay/overlap) caused by the dimensions (B). A, C, D are not mentioned." },
+            { passageIndex: 0, text: "What conclusion can be drawn about modern acoustic research from the final paragraph?", options: ["It confirms that cathedral design was randomly effective in producing sound.", "It applies lessons from cathedral design to shape current religious spaces.", "It suggests that contemporary design may be rediscovering what ancient builders achieved intuitively.", "It shows that modern cathedrals now use advanced digital techniques to shape sound."], correctAnswer: "C", explanation: "The final paragraph mentions scholars 'revisiting these ancient buildings' as 'early experiments in psychoacoustic design' even with modern computational modeling, implying a rediscovery of intuitive ancient practices (C). A is contradicted by 'intuitive,' B is too specific, D is not mentioned." },
+            // Passage 2 Questions
+            { passageIndex: 1, text: "What is the primary implication of the statement that 'authority flowed horizontally' in the Althing?", options: ["All Icelandic citizens were given equal votes in major decisions.", "The Althing operated through shared power among groups rather than centralised rule.", "Laws were determined solely by religious authorities.", "Executive power was limited to one elected chieftain."], correctAnswer: "B", explanation: "The passage contrasts the Althing with monarchies where authority flows downward, stating it operated 'horizontally' through 'consensus among powerful clans' and 'distributed authority,' matching B. A is false (inclusivity was limited), C is not mentioned, D is contradicted (Lawspeaker had no executive power)." },
+            { passageIndex: 1, text: "The author most likely includes the detail about exile being a common punishment to:", options: ["Show that the Althing's justice system was excessively harsh for its time.", "Indicate that executions were more symbolic than functional.", "Highlight a nonviolent approach to justice distinct from many medieval systems.", "Emphasise the Althing's strict control over its territory."], correctAnswer: "C", explanation: "The passage contrasts exile with execution and mentions reliance on social obligation rather than 'coercive force,' positioning exile as a less violent alternative common in other medieval systems (C). A is unlikely given the context, B is irrelevant, D is not supported." },
+            { passageIndex: 1, text: "Which of the following, if true, would most challenge the claim that the Althing represented a uniquely advanced form of governance?", options: ["Similar assemblies existed in other Norse settlements around the same time.", "Modern Icelandic law no longer recognises oral law traditions.", "The Althing was influenced by religious rituals and seasonal festivals.", "Its revival in the 19th century was largely symbolic rather than functional."], correctAnswer: "A", explanation: "The claim of the Althing being uniquely advanced ('rarely seen in medieval Europe,' 'prefigured parliamentary governance') would be challenged if similar structures were common elsewhere (A). B, C, D don't directly address the uniqueness or advancement claim compared to other contemporary systems." },
+            { passageIndex: 1, text: "What broader conclusion is most consistent with the author's presentation of the Althing?", options: ["Early democratic institutions tended to emerge in societies with formal literacy and strong legal codes.", "All medieval societies had some form of participatory politics, even if informal.", "Governance without enforcement mechanisms is inherently unstable and short-lived.", "Systems of governance rooted in consensus may develop even in the absence of modern state structures."], correctAnswer: "D", explanation: "The Althing operated via 'consensus,' relied on 'social obligation' not force, and had 'distributed authority' without features of modern states (written statutes, elected reps), supporting D. A is contradicted (oral tradition), B is too broad, C is contradicted by the Althing's existence." },
+             // Passage 3 Questions
+            { passageIndex: 2, text: "What is most likely the author's main purpose in including examples from both Norway and South Africa?", options: ["To highlight that silent protest is unique to authoritarian regimes.", "To demonstrate that silent protest has occurred across differing political and cultural contexts.", "To show that silence is more effective than traditional protest methods.", "To contrast successful and unsuccessful uses of protest."], correctAnswer: "B", explanation: "The examples from Nazi Norway and apartheid South Africa show silent protest being used effectively in very different oppressive regimes and locations, demonstrating its use across contexts (B). A is too narrow, C is not claimed, D isn't the primary purpose (both examples seem effective in context)." },
+            { passageIndex: 2, text: "What can be inferred from the 2007 study cited in the third paragraph?", options: ["Silent protests are rarely recognised by international institutions.", "Movements using silence are usually less well organised.", "Silence may be symbolically powerful but less likely to produce direct legislative outcomes.", "Silent protests are more successful in democratic nations than in authoritarian ones."], correctAnswer: "C", explanation: "The study found silent movements '23% less likely to achieve direct policy change,' indicating a lower rate of legislative success compared to vocal ones, despite potential symbolic power mentioned elsewhere (C). A is not mentioned, B is not mentioned, D is not addressed by the study details provided." },
+            { passageIndex: 2, text: "Which of the following most accurately reflects a tension discussed in the passage?", options: ["Silent protests are difficult to coordinate due to lack of messaging.", "Protesters disagree on whether silence should be used against economic systems.", "Governments often support silent protest because it avoids violence, raising doubt as to whether a silent protest can be truly anti-government.", "Silence can both protect and obscure meaning in resistance movements."], correctAnswer: "D", explanation: "The passage mentions scholars arguing silence creates 'ambiguity' but others noting it 'resists reduction to a single message' and can be the 'only safe form of dissent' under repression, highlighting the tension between obscurity/safety and clarity (D). A, B, C are not discussed as tensions." },
+            { passageIndex: 2, text: "Based on the passage, which of the following statements is most consistent with the author's broader view?", options: ["Protest methods should be judged solely by their policy impact.", "Silence, though less directly effective, may carry a type of resistance that conventional protest cannot.", "Silent resistance is an outdated form of protest in the digital age.", "Governments are more likely to tolerate silent protests than visible demonstrations."], correctAnswer: "B", explanation: "The author presents both the limitations (less policy change, ambiguity) and strengths (symbolic power, safety under repression) of silence, suggesting it offers a different *type* of resistance even if less directly effective by some metrics (B). A focuses only on policy, C is speculative, D is not explicitly supported as a general rule." },
+             // Passage 4 Questions
+            { passageIndex: 3, text: "The benefits of urban wildscaping were mostly seen in insects that are active during the night.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage states the benefits of wildscaping were 'mostly confined to ground-dwelling and nocturnal insects.' This directly supports A (True)." },
+            { passageIndex: 3, text: "The researchers recommend city gardeners avoid planting visually attractive flowers to prevent drawing false conclusions about ecosystem health.", options: ["True", "False", "Can't Tell"], correctAnswer: "C", explanation: "The passage cautions against drawing conclusions from visible species like butterflies/bees but doesn't recommend *avoiding* planting flowers. It advocates for broader monitoring and planning. Therefore, the specific recommendation isn't mentioned (C - Can't Tell)." },
+            { passageIndex: 3, text: "Despite some urban conservation efforts, artificial lighting remains a barrier to insect population recovery.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage states wildscaping benefits were limited for flying insects and hypothesizes that 'light pollution continues to disorient' them 'regardless of habitat structure,' indicating light pollution remains a barrier despite conservation efforts like wildscaping (A - True)." },
+            { passageIndex: 3, text: "It can be inferred that current visual observations of insect presence may not provide an accurate picture of overall urban insect biodiversity.", options: ["True", "False", "Can't Tell"], correctAnswer: "A", explanation: "The passage explicitly states that visible species like butterflies/bees 'are often exceptions in an otherwise collapsing ecosystem' and cautions against drawing optimistic conclusions from their presence, implying visual observation is misleading for overall biodiversity (A - True)." },
+        ];
+
+
+        // --- State ---
+        let currentQuestionIndex = 0;
+        let userAnswers = new Array(questions.length).fill(null); // Updated size
+        let timerInterval;
+        let timeLeft = 10 * 60; // Updated Time: 10 minutes in seconds
+        let examStartTime;
+        let examEndTime;
+        let userName = '';
+        let userGoal = '';
+        let userFocusArea = '';
+        let isReviewingFromResults = false; // Flag to track if reviewing from results screen
+        let questionStartTime = null; // Timestamp when the current question was loaded
+        let questionTimes = new Array(questions.length).fill(0); // Updated size
+        let flaggedQuestions = new Array(questions.length).fill(false); // Updated size
+        let isFilteringFlagged = false; // NEW: State for review screen filter
+        let currentlyDisplayedPassageIndex = -1; // Track the index of the currently displayed passage
+
+
+        // --- Elements ---
+        const appContainer = document.getElementById('app-container');
+        const setupScreen = document.getElementById('setup-screen');
+        const examScreen = document.getElementById('exam-screen');
+        const reviewScreen = document.getElementById('review-screen');
+        const resultsScreen = document.getElementById('results-screen');
+        const navigatorModal = document.getElementById('navigator-modal');
+        const startButton = document.getElementById('start-button');
+        const prevButton = document.getElementById('prev-button');
+        const nextButton = document.getElementById('next-button');
+        const navigatorButton = document.getElementById('navigator-button');
+        const closeModalButton = document.getElementById('close-modal-button');
+        const endExamButton = document.getElementById('end-exam-button'); // On Review Screen
+        const endExamButtonFooter = document.getElementById('end-exam-button-footer'); // In Footer
+        const backToResultsButton = document.getElementById('back-to-results-button'); // New button
+        const flagButton = document.getElementById('flag-button');
+        const passageNumberEl = document.getElementById('passage-number');
+        const passageTextEl = document.getElementById('passage-text');
+        const questionNumberEl = document.getElementById('question-number');
+        const questionNumberInfoEl = document.getElementById('question-number-info');
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const timerEl = document.getElementById('timer');
+        const reviewGrid = document.getElementById('review-grid');
+        const navigatorGrid = document.getElementById('navigator-grid');
+        const scoreEl = document.getElementById('score');
+        const totalQuestionsResultsEl = document.getElementById('total-questions-results'); // Span for total questions in results
+        const timeTakenEl = document.getElementById('time-taken');
+        const resultsDetails = document.getElementById('results-details');
+        const nameInput = document.getElementById('name');
+        const goalInput = document.getElementById('goal');
+        const focusAreaInput = document.getElementById('focus-area');
+        const examTitleEl = document.getElementById('exam-title'); // Title element
+        const filterFlaggedButton = document.getElementById('filter-flagged-button'); // NEW: Filter button
+        const setupQuestionCountEl = document.getElementById('setup-question-count'); // Element for setup question count
+        const setupTimeLimitEl = document.getElementById('setup-time-limit'); // Element for setup time limit
+
+
+
+        // --- Functions ---
+
+        function startTimer() {
+            examStartTime = new Date();
+            clearInterval(timerInterval);
+            // Initialize timer display with the correct starting time
+            timerEl.textContent = formatTimeSeconds(timeLeft);
+            timerEl.classList.remove('text-gray-300');
+            timerEl.classList.add('text-white', 'bg-opacity-20', 'bg-white');
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerEl.textContent = formatTimeSeconds(timeLeft);
+                if (timeLeft <= 0) {
+                    endExamAndShowResults();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            examEndTime = examEndTime || new Date();
+            timerEl.classList.remove('text-white', 'bg-opacity-20', 'bg-white');
+            timerEl.classList.add('text-gray-300');
+        }
+
+        function formatTimeSeconds(totalSeconds) {
+             if (totalSeconds < 0) totalSeconds = 0;
+             const minutes = Math.floor(totalSeconds / 60);
+             const seconds = totalSeconds % 60;
+             return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+        }
+
+        function formatTimeDifference(milliseconds) {
+            if (!milliseconds || milliseconds < 0) return "0 min 00 sec";
+            const totalSeconds = Math.round(milliseconds / 1000);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes} min ${seconds < 10 ? '0' : ''}${seconds} sec`;
+        }
+
+        /** Records the time spent on the current question */
+        function recordTimeSpent(index) {
+            if (questionStartTime && index >= 0 && index < questions.length) {
+                const timeSpent = Date.now() - questionStartTime;
+                questionTimes[index] = (questionTimes[index] || 0) + timeSpent;
+            }
+            questionStartTime = null;
+        }
+
+        /** Toggles the flag status for the current question */
+        function toggleFlag() {
+            if (isReviewingFromResults) return;
+            const index = currentQuestionIndex;
+            flaggedQuestions[index] = !flaggedQuestions[index];
+            updateFlagButtonAppearance();
+            updateNavigatorButtons();
+        }
+
+        /** Updates the flag button's appearance based on the current question's flag status */
+        function updateFlagButtonAppearance() {
+            const isFlagged = flaggedQuestions[currentQuestionIndex];
+            flagButton.textContent = isFlagged ? 'Unflag' : 'Flag for Review';
+            flagButton.classList.toggle('flagged', isFlagged);
+        }
+
+
+        function loadQuestion(index, reviewMode = false) {
+            if (index < 0 || index >= questions.length) return;
+
+             if (!isReviewingFromResults && !reviewMode) {
+                 recordTimeSpent(currentQuestionIndex);
+            }
+
+            const question = questions[index];
+            const newPassageIndex = question.passageIndex;
+            const passageContainer = document.querySelector('.passage-column');
+            const questionContainer = document.querySelector('.question-column');
+
+            // Load passage if the new index is different from the currently displayed one
+            // Always reload in review mode to ensure correct passage shows when jumping from results
+            if (newPassageIndex !== currentlyDisplayedPassageIndex || reviewMode) {
+                passageTextEl.innerHTML = passages[newPassageIndex].replace(/\n/g, '<br><br>');
+                passageNumberEl.textContent = newPassageIndex + 1;
+                currentlyDisplayedPassageIndex = newPassageIndex;
+                 if (passageContainer) passageContainer.scrollTop = 0;
+            }
+
+            currentQuestionIndex = index;
+            isReviewingFromResults = reviewMode;
+
+            questionNumberEl.textContent = index + 1;
+            questionNumberInfoEl.textContent = `${index + 1} of ${questions.length}`; // Use dynamic length
+            questionTextEl.textContent = question.text;
+             if (questionContainer) questionContainer.scrollTop = 0;
+
+            optionsContainer.innerHTML = '';
+            const optionLetters = ['A', 'B', 'C', 'D'];
+            question.options.forEach((option, i) => {
+                const optionId = `q${index}_opt${i}`;
+                const label = document.createElement('label');
+                label.htmlFor = optionId;
+                label.classList.add('option-label');
+                label.dataset.optionIndex = i;
+
+                const radio = document.createElement('input');
+                radio.type = 'radio';
+                radio.id = optionId;
+                radio.name = `question_${index}`;
+                radio.value = optionLetters[i];
+                radio.disabled = reviewMode;
+
+                label.classList.remove('border-green-500', 'border-red-500', 'border-2', 'bg-green-50', 'bg-red-50', 'selected-answer');
+                label.style.cursor = reviewMode ? 'default' : 'pointer';
+
+                if (userAnswers[index] === optionLetters[i]) {
+                    radio.checked = true;
+                    label.classList.add('selected-answer');
+                }
+
+                if (reviewMode) {
+                    const isCorrectAnswer = question.correctAnswer === optionLetters[i];
+                    const isSelectedAnswer = userAnswers[index] === optionLetters[i];
+
+                    if (isCorrectAnswer) {
+                        label.classList.add('border-green-500', 'border-2');
+                        if (!isSelectedAnswer) label.classList.add('bg-green-50');
+                    } else if (isSelectedAnswer) {
+                        label.classList.add('border-red-500', 'border-2', 'bg-red-50');
+                    }
+                }
+
+                label.appendChild(radio);
+                const textNode = document.createTextNode(`${optionLetters[i]}) ${option}`);
+                label.appendChild(textNode);
+
+                if (!reviewMode) {
+                    label.addEventListener('click', (e) => {
+                        if (e.target.tagName !== 'INPUT') handleOptionSelect(index, i, optionLetters[i]);
+                    });
+                    radio.addEventListener('change', () => handleOptionSelect(index, i, optionLetters[i]));
+                }
+                optionsContainer.appendChild(label);
+            });
+
+            prevButton.disabled = index === 0;
+            if (!reviewMode && index === questions.length - 1) {
+                 nextButton.textContent = 'Finish & Review';
+                 nextButton.disabled = false;
+            } else if (!reviewMode) {
+                 nextButton.textContent = 'Next (Alt+N) →';
+                 nextButton.disabled = false;
+            } else { // In review mode
+                 nextButton.disabled = index === questions.length - 1;
+                 if (!nextButton.disabled) nextButton.textContent = 'Next →';
+            }
+
+            updateFlagButtonAppearance();
+
+            if (reviewMode) {
+                backToResultsButton.classList.remove('hidden');
+                endExamButtonFooter.classList.add('hidden');
+                examTitleEl.textContent = "Reviewing Question";
+                prevButton.disabled = index === 0;
+                navigatorButton.disabled = false;
+                flagButton.disabled = true;
+            } else {
+                backToResultsButton.classList.add('hidden');
+                endExamButtonFooter.classList.remove('hidden');
+                examTitleEl.textContent = "Verbal Reasoning";
+                navigatorButton.disabled = false;
+                flagButton.disabled = false;
+                prevButton.disabled = index === 0;
+            }
+
+            updateNavigatorHighlight();
+
+            if (!isReviewingFromResults) {
+                questionStartTime = Date.now();
+            }
+        }
+
+         function handleOptionSelect(questionIndex, optionIndex, optionValue) {
+             if (questionIndex !== currentQuestionIndex || isReviewingFromResults) return;
+             userAnswers[questionIndex] = optionValue;
+
+             document.querySelectorAll(`#options-container .option-label`).forEach(lbl => {
+                 lbl.classList.remove('selected-answer');
+                 const radio = lbl.querySelector('input[type="radio"]');
+                 if(radio) radio.checked = false;
+             });
+
+             const selectedLabel = document.querySelector(`#options-container label[for="q${questionIndex}_opt${optionIndex}"]`);
+              if (selectedLabel) {
+                 selectedLabel.classList.add('selected-answer');
+                 const radio = selectedLabel.querySelector('input[type="radio"]');
+                 if (radio) radio.checked = true;
+             }
+             updateNavigatorButtons();
+         }
+
+
+        function showNextQuestion() {
+            if (isReviewingFromResults) {
+                if (currentQuestionIndex < questions.length - 1) {
+                    loadQuestion(currentQuestionIndex + 1, true);
+                }
+            }
+            else if (!isReviewingFromResults) {
+                 recordTimeSpent(currentQuestionIndex);
+                 if (currentQuestionIndex === questions.length - 1) {
+                     stopTimer();
+                     showReviewScreen();
+                 } else if (currentQuestionIndex < questions.length - 1) {
+                     loadQuestion(currentQuestionIndex + 1);
+                 }
+            }
+        }
+
+
+        function showPrevQuestion() {
+             if (isReviewingFromResults) {
+                 if (currentQuestionIndex > 0) {
+                     loadQuestion(currentQuestionIndex - 1, true);
+                 }
+             }
+            else if (currentQuestionIndex > 0 && !isReviewingFromResults) {
+                 recordTimeSpent(currentQuestionIndex);
+                 loadQuestion(currentQuestionIndex - 1);
+            }
+        }
+
+        function showSetupScreen() {
+            setupScreen.classList.remove('hidden');
+            examScreen.classList.add('hidden');
+            reviewScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            appContainer.classList.remove('flex', 'flex-col');
+            currentlyDisplayedPassageIndex = -1;
+            // Update setup screen text dynamically
+            if (setupQuestionCountEl) setupQuestionCountEl.textContent = questions.length;
+            if (setupTimeLimitEl) setupTimeLimitEl.textContent = `${Math.floor(timeLeft / 60)} minutes`;
+
+        }
+
+        function showExamScreen() {
+            setupScreen.classList.add('hidden');
+            examScreen.classList.remove('hidden');
+            examScreen.classList.add('flex');
+            reviewScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            appContainer.classList.add('flex', 'flex-col');
+            currentlyDisplayedPassageIndex = -1;
+        }
+
+
+        function showReviewScreen(filterFlagged = false) {
+            recordTimeSpent(currentQuestionIndex);
+            stopTimer();
+
+            examScreen.classList.add('hidden');
+            reviewScreen.classList.remove('hidden');
+            reviewScreen.classList.add('flex');
+            resultsScreen.classList.add('hidden');
+            setupScreen.classList.add('hidden');
+            appContainer.classList.add('flex', 'flex-col');
+
+            reviewGrid.innerHTML = '';
+            questions.forEach((_, index) => {
+                 if (filterFlagged && !flaggedQuestions[index]) {
+                     return;
+                 }
+
+                const button = document.createElement('button');
+                button.textContent = index + 1;
+                button.className = 'review-grid-button';
+
+                if (userAnswers[index] !== null && userAnswers[index] !== undefined) {
+                    button.classList.add('review-grid-button-answered');
+                } else {
+                     button.classList.add('review-grid-button-unanswered');
+                }
+
+                if (flaggedQuestions[index]) {
+                    button.classList.add('review-flagged');
+                }
+
+                button.onclick = () => {
+                    reviewScreen.classList.add('hidden');
+                    reviewScreen.classList.remove('flex');
+                    showExamScreen();
+                    loadQuestion(index);
+                };
+                reviewGrid.appendChild(button);
+            });
+
+             filterFlaggedButton.textContent = filterFlagged ? 'Show All Questions' : 'Show Flagged Only';
+        }
+
+         function populateNavigator() {
+            navigatorGrid.innerHTML = '';
+            questions.forEach((_, index) => {
+                const button = document.createElement('button');
+                button.textContent = index + 1;
+                button.classList.add('py-2', 'px-1', 'border', 'border-gray-300', 'rounded-md', 'text-center', 'transition', 'duration-150', 'ease-in-out', 'text-sm', 'hover:bg-gray-100');
+                button.dataset.questionIndex = index;
+
+                if (userAnswers[index]) button.classList.add('nav-answered');
+                if (index === currentQuestionIndex) button.classList.add('nav-current');
+                if (flaggedQuestions[index]) button.classList.add('nav-flagged');
+
+                button.onclick = () => {
+                    navigatorModal.classList.remove('flex');
+                    navigatorModal.classList.add('hidden');
+                    const targetIndex = parseInt(button.dataset.questionIndex, 10);
+                    loadQuestion(targetIndex, isReviewingFromResults);
+                };
+                navigatorGrid.appendChild(button);
+            });
+        }
+
+        function updateNavigatorButtons() {
+            if (!navigatorGrid) return;
+            const buttons = navigatorGrid.querySelectorAll('button');
+            buttons.forEach(button => {
+                const index = parseInt(button.dataset.questionIndex, 10);
+                button.classList.remove('nav-answered', 'nav-current', 'nav-flagged');
+                if (userAnswers[index]) button.classList.add('nav-answered');
+                if (index === currentQuestionIndex) button.classList.add('nav-current');
+                if (flaggedQuestions[index]) button.classList.add('nav-flagged');
+            });
+        }
+
+         function updateNavigatorHighlight() {
+             if (!navigatorGrid) return;
+             const buttons = navigatorGrid.querySelectorAll('button');
+             buttons.forEach(button => {
+                 const index = parseInt(button.dataset.questionIndex, 10);
+                 button.classList.remove('nav-current');
+                 if (index === currentQuestionIndex) button.classList.add('nav-current');
+             });
+         }
+
+        function showResultsScreen() {
+            examEndTime = examEndTime || new Date();
+            recordTimeSpent(currentQuestionIndex);
+            stopTimer();
+
+            examScreen.classList.add('hidden');
+            reviewScreen.classList.add('hidden');
+            reviewScreen.classList.remove('flex');
+            resultsScreen.classList.remove('hidden');
+            resultsScreen.classList.add('flex');
+            setupScreen.classList.add('hidden');
+            appContainer.classList.add('flex', 'flex-col');
+
+            let score = 0;
+            resultsDetails.innerHTML = '';
+
+            questions.forEach((qData, index) => {
+                const userAnswer = userAnswers[index];
+                const correctAnswer = qData.correctAnswer;
+                const isCorrect = userAnswer !== null && userAnswer !== undefined && userAnswer === correctAnswer;
+                if (isCorrect) score++;
+
+                const timeSpentMs = questionTimes[index] || 0;
+                const timeSpentSec = Math.round(timeSpentMs / 1000);
+
+                const resultDiv = document.createElement('div');
+                resultDiv.classList.add('result-item-clickable');
+                resultDiv.classList.add(isCorrect ? 'correct-answer' : 'incorrect-answer');
+                resultDiv.dataset.index = index;
+                resultDiv.title = `Click to review Question ${index + 1}`;
+
+                resultDiv.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="font-semibold mb-1">Question ${index + 1} ${flaggedQuestions[index] ? '<span class="text-xs text-amber-600">(Flagged)</span>' : ''}</p>
+                            <p class="text-sm mb-1">
+                                <strong>Your Answer:</strong> ${userAnswer !== null && userAnswer !== undefined ? userAnswer : 'Not Answered'}
+                                ${isCorrect ? '<span class="correct-indicator-text">(Correct)</span>' : `<span class="incorrect-indicator-text">(Incorrect)</span>`}
+                            </p>
+                            ${!isCorrect ? `<p class="text-sm"><strong>Correct Answer:</strong> ${correctAnswer}</p>` : ''}
+                            <p class="text-xs text-gray-500 mt-1">Time Spent: ${timeSpentSec}s</p>
+                        </div>
+                        <details class="text-xs mt-1 cursor-pointer text-right flex-shrink-0 ml-4">
+                            <summary class="text-gray-500 hover:text-blue-600 font-medium">Show Q</summary>
+                            <p class="mt-1 text-gray-700 text-left p-2 bg-gray-50 rounded border max-w-xs">${qData.text}</p>
+                        </details>
+                    </div>`;
+
+                if (qData.explanation) {
+                    const explanationDiv = document.createElement('div');
+                    explanationDiv.classList.add('explanation-box');
+                    explanationDiv.innerHTML = `<strong class="font-semibold">Explanation:</strong> ${qData.explanation}`;
+                    resultDiv.appendChild(explanationDiv);
+                }
+
+                resultDiv.addEventListener('click', (event) => {
+                    if (!event.target.closest('details')) {
+                        revisitQuestionFromResults(index);
+                    }
+                });
+                resultsDetails.appendChild(resultDiv);
+            });
+
+            scoreEl.textContent = score;
+            totalQuestionsResultsEl.textContent = questions.length; // Use dynamic length
+            const timeDiff = examEndTime - examStartTime;
+            timeTakenEl.textContent = formatTimeDifference(timeDiff);
+        }
+
+
+        function revisitQuestionFromResults(index) {
+            resultsScreen.classList.add('hidden');
+            resultsScreen.classList.remove('flex');
+            showExamScreen();
+            loadQuestion(index, true);
+        }
+
+        function endExamAndShowResults() {
+            stopTimer();
+            showResultsScreen();
+        }
+         function handleEndExamFooterClick() {
+             recordTimeSpent(currentQuestionIndex);
+             stopTimer();
+             showReviewScreen();
+         }
+
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', () => {
+            userName = nameInput.value.trim();
+            userGoal = goalInput.value.trim();
+            userFocusArea = focusAreaInput.value.trim();
+
+            // Reset state
+            timeLeft = 10 * 60; // Use updated time
+            userAnswers = new Array(questions.length).fill(null);
+            questionTimes = new Array(questions.length).fill(0);
+            flaggedQuestions = new Array(questions.length).fill(false);
+            questionStartTime = null;
+            currentQuestionIndex = 0;
+            isReviewingFromResults = false;
+            isFilteringFlagged = false;
+            currentlyDisplayedPassageIndex = -1;
+
+            showExamScreen();
+            startTimer(); // Start timer *after* setting timeLeft
+            loadQuestion(0);
+            populateNavigator();
+        });
+
+        nextButton.addEventListener('click', showNextQuestion);
+        prevButton.addEventListener('click', showPrevQuestion);
+        endExamButton.addEventListener('click', endExamAndShowResults);
+        endExamButtonFooter.addEventListener('click', handleEndExamFooterClick);
+        backToResultsButton.addEventListener('click', () => {
+            isReviewingFromResults = false;
+            showResultsScreen();
+        });
+        navigatorButton.addEventListener('click', () => {
+             recordTimeSpent(currentQuestionIndex);
+            updateNavigatorButtons();
+            navigatorModal.classList.remove('hidden');
+            navigatorModal.classList.add('flex');
+        });
+        closeModalButton.addEventListener('click', () => {
+             navigatorModal.classList.remove('flex');
+             navigatorModal.classList.add('hidden');
+             if (!isReviewingFromResults) questionStartTime = Date.now();
+        });
+        navigatorModal.addEventListener('click', (event) => {
+            if (event.target === navigatorModal) closeModalButton.click();
+        });
+
+        flagButton.addEventListener('click', toggleFlag);
+
+        filterFlaggedButton.addEventListener('click', () => {
+            isFilteringFlagged = !isFilteringFlagged;
+            showReviewScreen(isFilteringFlagged);
+        });
+
+
+        // Keyboard shortcuts
+        function handleKeyboardShortcuts(e) {
+             const isExamVisible = !examScreen.classList.contains('hidden');
+             const isModalVisible = navigatorModal.classList.contains('flex');
+             const isInputFocused = document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+             if (isModalVisible || isInputFocused) return;
+             if (!isExamVisible) return;
+
+             const key = e.key.toLowerCase();
+             const altOrOption = e.altKey;
+             const code = e.code.toLowerCase();
+
+             if (altOrOption) {
+                 switch (code) {
+                     case 'keyn':
+                         e.preventDefault();
+                         if (!nextButton.disabled) nextButton.click();
+                         return;
+                     case 'keyp':
+                         e.preventDefault();
+                         if (!prevButton.disabled) prevButton.click();
+                         return;
+                     case 'keyf':
+                         e.preventDefault();
+                         if (!isReviewingFromResults && !flagButton.disabled) flagButton.click();
+                         return;
+                     default:
+                         return;
+                 }
+             } else {
+                 if (['a', 'b', 'c', 'd'].includes(key) && !isReviewingFromResults) {
+                     e.preventDefault();
+                     const optionIndex = ['a', 'b', 'c', 'd'].indexOf(key);
+                     const optionValue = ['A', 'B', 'C', 'D'][optionIndex];
+                     const currentQuestion = questions[currentQuestionIndex];
+                     if (optionIndex < currentQuestion.options.length) {
+                         handleOptionSelect(currentQuestionIndex, optionIndex, optionValue);
+                     }
+                     return;
+                 }
+             }
+        }
+
+        document.addEventListener('keydown', handleKeyboardShortcuts);
+
+
+        // --- Initial Load ---
+        showSetupScreen(); // Start with the setup screen
+
+    </script>
+</body>
+</html>
