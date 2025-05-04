@@ -424,8 +424,14 @@
             <div id="results-details" class="space-y-3 overflow-y-auto flex-grow pr-2">
                 </div>
             <div class="mt-6 flex-shrink-0 border-t pt-4">
-                <label for="reflection-text" class="block text-md font-semibold text-gray-700 mb-2">Main takeaway from this practice:</label>
-                <textarea id="reflection-text" name="reflection-text" rows="3" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Reflect on your performance, strategies, or areas for improvement..."></textarea>
+                 <div class="mb-4">
+                    <label for="focus-rating" class="block text-md font-semibold text-gray-700 mb-1">My focus out of 5 (1 very low, 5 very high):</label>
+                    <input type="number" id="focus-rating" name="focus-rating" min="1" max="5" class="mt-1 block w-20 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="1-5">
+                 </div>
+                 <div>
+                    <label for="reflection-text" class="block text-md font-semibold text-gray-700 mb-1">Main takeaway from this practice:</label>
+                    <textarea id="reflection-text" name="reflection-text" rows="3" class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" placeholder="Reflect on your performance, strategies, or areas for improvement..."></textarea>
+                 </div>
             </div>
              <div class="mt-6 text-center flex-shrink-0 flex justify-center space-x-4">
                 <button onclick="window.location.reload()" class="secondary-button px-6 py-2">
@@ -547,6 +553,7 @@
         const reviewExplanationContainer = document.getElementById('review-explanation-container'); // Container for explanation
         const reflectionText = document.getElementById('reflection-text'); // Textarea for reflection
         const downloadPdfButton = document.getElementById('download-pdf-button'); // PDF download button
+        const focusRatingInput = document.getElementById('focus-rating'); // Focus rating input
 
 
 
@@ -994,6 +1001,7 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const reflection = reflectionText.value.trim();
+            const focusRating = focusRatingInput.value; // Get focus rating
             const finalScore = scoreEl.textContent;
             const totalQuestions = totalQuestionsResultsEl.textContent;
             const timeTaken = timeTakenEl.textContent;
@@ -1021,9 +1029,18 @@
             doc.text(`Time Taken: ${timeTaken}`, margin, y);
             y += lineHeight * 1.5;
 
+            // Focus Rating
+            doc.setFontSize(14);
+            doc.text("Focus Rating (1-5):", margin, y);
+            y += lineHeight;
+            doc.setFontSize(10);
+            doc.text(focusRating || 'N/A', margin, y);
+            y += lineHeight * 1.5;
+
+
             // Reflection
             doc.setFontSize(14);
-            doc.text("Reflection:", margin, y);
+            doc.text("Main Takeaway:", margin, y);
             y += lineHeight;
             doc.setFontSize(10);
             // Use splitTextToSize for wrapping
